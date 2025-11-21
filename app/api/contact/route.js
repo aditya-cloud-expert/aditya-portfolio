@@ -1,13 +1,14 @@
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req) {
   try {
+    // IMPORTANT: Initialize Resend HERE, not at top level
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
     const { name, email, message, recaptchaToken } = await req.json();
 
-    // 1) Verify reCAPTCHA
+    // Verify reCAPTCHA
     const recaptchaRes = await fetch(
       "https://www.google.com/recaptcha/api/siteverify",
       {
@@ -26,7 +27,7 @@ export async function POST(req) {
       );
     }
 
-    // 2) Send email via Resend
+    // Send email
     await resend.emails.send({
       from: "Portfolio <onboarding@resend.dev>",
       to: "aditya.cloud.expert@gmail.com",
@@ -43,6 +44,7 @@ export async function POST(req) {
     });
 
     return NextResponse.json({ success: true });
+
   } catch (e) {
     return NextResponse.json(
       { success: false, error: e.message },
