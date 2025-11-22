@@ -1,53 +1,107 @@
-import { Resend } from "resend";
-import { NextResponse } from "next/server";
+import { Resend } from 'resend';
+import { NextResponse } from 'next/server';
 
-export async function POST(req) {
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function POST(request) {
+  console.log('=== API ROUTE CALLED ===');
+  
   try {
-    // IMPORTANT: Initialize Resend HERE, not at top level
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    // Check if API key exists
+    console.log('Checking API key...');
+    console.log('API Key exists:', !!process.env.RESEND_API_KEY);
+    console.log('API Key preview:', process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.substring(0, 10) + '...' : 'NOT FOUND');
+    
+    // Parse request body
+    console.log('Parsing request body...');
+    const body = await request.json();
+    console.log('Request body received:', body);
+    
+    const { name, email, message } = body;
+    console.log('Extracted fields:', { name, email, message: message?.substring(0, 50) });
 
-    const { name, email, message, recaptchaToken } = await req.json();
-
-    // Verify reCAPTCHA
-    const recaptchaRes = await fetch(
-      "https://www.google.com/recaptcha/api/siteverify",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}`,
-      }
-    );
-
-    const recaptchaData = await recaptchaRes.json();
-
-    if (!recaptchaData.success || recaptchaData.score < 0.5) {
+    // Validate inputs
+    if (!name || !email || !message) {
+      console.log('❌ Validation failed: Missing fields');
+      console.log('Missing:', { 
+        name: !name, 
+        email: !email, 
+        message: !message 
+      });
       return NextResponse.json(
-        { success: false, error: "Failed reCAPTCHA", score: recaptchaData.score },
+        { success: false, error: 'All fields are required' },
         { status: 400 }
       );
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log('❌ Invalid email format:', email);
+      return NextResponse.json(
+        { success: false, error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Basic spam protection
+    if (message.length < 10) {
+      console.log('❌ Message too short:', message.length);
+      return NextResponse.json(
+        { success: false, error: 'Message is too short (minimum 10 characters)' },
+        { status: 400 }
+      );
+    }
+
+    if (message.length > 5000) {
+      console.log('❌ Message too long:', message.length);
+      return NextResponse.json(
+        { success: false, error: 'Message is too long (maximum 5000 characters)' },
+        { status: 400 }
+      );
+    }
+
+    console.log('✅ All validations passed');
+    console.log('Attempting to send email with Resend...');
+
     // Send email
-    await resend.emails.send({
-      from: "Portfolio <onboarding@resend.dev>",
-      to: "aditya.cloud.expert@gmail.com",
-      subject: `New message from ${name}`,
+    const data = await resend.emails.send({
+      from: 'Aditya Portfolio <onboarding@resend.dev>',
+      to: ['aditya.cloud.expert@gmail.com'],
+      replyTo: email,
+      subject: `New Portfolio Contact from ${name}`,
       html: `
-        <h2>Portfolio Contact Message</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Message:</strong></p>
-        <p>${message}</p>
-        <hr/>
-        <p>reCAPTCHA score: ${recaptchaData.score}</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2>New Contact Form Submission</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Message:</strong></p>
+          <p>${message}</p>
+        </div>
       `,
     });
 
-    return NextResponse.json({ success: true });
+    console.log('✅ Email sent successfully!');
+    console.log('Resend response:', data);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Email sent successfully',
+      emailId: data.id
+    });
 
-  } catch (e) {
+  } catch (error) {
+    console.error('❌ ERROR CAUGHT:');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
     return NextResponse.json(
-      { success: false, error: e.message },
+      { 
+        success: false, 
+        error: 'Failed to send email',
+        details: error.message
+      },
       { status: 500 }
     );
   }

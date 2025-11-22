@@ -12,26 +12,35 @@ export default function Portfolio() {
       return;
     }
     
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
     setStatus('sending');
     
     try {
-      const token = 'demo_token';
-      
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, recaptchaToken: token })
+        body: JSON.stringify(formData)
       });
+      
+      const data = await response.json();
       
       if (response.ok) {
         setStatus('success');
         setFormData({ name: '', email: '', message: '' });
         setTimeout(() => setStatus(''), 5000);
       } else {
+        console.error('Error:', data);
         setStatus('error');
         setTimeout(() => setStatus(''), 3000);
       }
     } catch (error) {
+      console.error('Error:', error);
       setStatus('error');
       setTimeout(() => setStatus(''), 3000);
     }
@@ -377,10 +386,9 @@ export default function Portfolio() {
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
               <span className="bg-gradient-to-r from-cyan-400 to-pink-500 text-transparent bg-clip-text">Let's Build Together</span>
             </h2>
-            <div className="flex items-center justify-center gap-2 text-green-400 text-sm mt-6">
-              <Shield className="w-4 h-4" />
-              <span>Protected by Google reCAPTCHA v3</span>
-            </div>
+            <p className="text-gray-400 text-sm mt-4">
+              Fill out the form below and I'll get back to you within 24 hours
+            </p>
           </div>
           
           <div className="space-y-6">
@@ -441,20 +449,18 @@ export default function Portfolio() {
               {status === 'sending' ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Verifying & Sending...</span>
+                  <span>Sending...</span>
                 </>
               ) : (
                 <>
-                  <Shield className="w-5 h-5" />
-                  <span>Send Secure Message</span>
+                  <Mail className="w-5 h-5" />
+                  <span>Send Message</span>
                 </>
               )}
             </button>
             
             <p className="text-center text-gray-500 text-sm">
-              This site is protected by reCAPTCHA and the Google{' '}
-              <a href="https://policies.google.com/privacy" className="text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and{' '}
-              <a href="https://policies.google.com/terms" className="text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.
+              Your information is safe and will only be used to respond to your inquiry.
             </p>
           </div>
         </div>
